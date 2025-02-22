@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Server extends Thread {
-    private List<ClientHandler> clients = new ArrayList<>(); // Tracks all connected clients
+    private List<ClientHandler> clients = new ArrayList<ClientHandler>(); // Tracks all connected clients
     private String host;
     private int port;
     private ServerSocket serverSocket;
