@@ -43,11 +43,10 @@ public class Server extends Thread {
     // Sends message to all connected clients
     public void broadcast(String message, SocketAddress source) {
         for (ClientHandler client : clients) {
-            if (!client.getSocketAddress().equals(source)) {
-                client.send(message);
-            }
+            client.send(message);
         }
     }
+    
 
     // Removes a client handler from the list when it disconnects
     public void removeClient(ClientHandler client) {
