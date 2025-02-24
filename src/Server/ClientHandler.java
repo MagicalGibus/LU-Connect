@@ -1,5 +1,6 @@
 package Server;
 
+import Authentication.UserManager;
 import Encryption.EncryptionTool;
 
 import java.net.*;
@@ -10,6 +11,8 @@ public class ClientHandler extends Thread {
     private SocketAddress socketAddress;
     private Server server;
     private PrintWriter writer;
+    private String username;
+    private static UserManager userManager = new UserManager();
 
     public ClientHandler(Socket clientSocket, Server server) {
         this.clientSocket = clientSocket;
@@ -20,23 +23,65 @@ public class ClientHandler extends Thread {
     @Override
     public void run() {
         try {
-
             // Reads text from client
             BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
             writer = new PrintWriter(clientSocket.getOutputStream(), true); // Sends text to client
 
-            // Continuously reads messages from client
+            // Send encryption key
             writer.println(EncryptionTool.getKeyAsString());
 
+            // Handles authentication 
+            boolean authenticated = false;
+            while (!authenticated) {
+                String encryptedAuthMessage = reader.readLine();
+                if (encryptedAuthMessage == null) {
+                    break; // Client disconnected
+                }
+                
+                String authMessage = EncryptionTool.decrypt(encryptedAuthMessage);
+                String[] parts = authMessage.split(":");
+                
+                if (parts.length >= 3) {
+                    String authType = parts[0];
+                    String username = parts[1];
+                    String password = parts[2];
+                    
+                    if (authType.equals("AUTH_LOGIN")) {
+                        if (userManager.authenticateUser(username, password)) {
+                            authenticated = true;
+                            this.username = username;
+                            writer.println(EncryptionTool.encrypt("AUTH_SUCCESS"));
+                        } else {
+                            writer.println(EncryptionTool.encrypt("AUTH_FAILURE"));
+                        }
+                    } else if (authType.equals("AUTH_REGISTER")) {
+                        if (userManager.registerUser(username, password)) {
+                            authenticated = true;
+                            this.username = username;
+                            writer.println(EncryptionTool.encrypt("AUTH_SUCCESS"));
+                        } else {
+                            writer.println(EncryptionTool.encrypt("AUTH_FAILURE"));
+                        }
+                    }
+                }
+            }
+            
+            if (!authenticated) {
+                clientSocket.close();
+                server.removeClient(this);
+                return;
+            }
+
+            // Continue with normal message handling
             String message;
             while ((message = reader.readLine()) != null) {
-                // Pass message along without decrypting
-                System.out.println(socketAddress + " sent " + message);
+                // Pass message along
+                System.out.println(socketAddress + " (" + username + ") sent a message");
                 server.broadcast(message, socketAddress);
             }
 
-            // Prints info when client disconnects
-            System.out.println(socketAddress + " has closed the connection");
+            // Print info when client disconnects
+            System.out.println(socketAddress + " (" + username + ") has closed the connection");
             clientSocket.close();
             server.removeClient(this);
         } catch (IOException e) {
@@ -48,8 +93,8 @@ public class ClientHandler extends Thread {
             }
             server.removeClient(this);
         } catch (Exception e) {
-                    e.printStackTrace();
-                }
+            e.printStackTrace();
+        }
     }
 
     // Send message to this client
@@ -64,7 +109,12 @@ public class ClientHandler extends Thread {
         return socketAddress;
     }
 
-    // CLoses the client socket
+    // Getter for username
+    public String getUsername() {
+        return username;
+    }
+
+    // Closes the client socket
     public void closeSocket() {
         try {
             if (clientSocket != null && !clientSocket.isClosed()) {

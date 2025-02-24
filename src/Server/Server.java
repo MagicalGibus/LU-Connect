@@ -23,22 +23,26 @@ public class Server extends Thread {
             serverSocket.setReuseAddress(true);
             serverSocket.bind(new InetSocketAddress(host, port)); // Binds socket to specified host and port
 
-            System.out.println("Listening at " + serverSocket.getLocalSocketAddress());
+            System.out.println("Server started at " + serverSocket.getLocalSocketAddress());
+            System.out.println("Waiting for client connections...");
+            
+            // Start the exit handler
+            ExitHandler exitHandler = new ExitHandler(this);
+            exitHandler.start();
 
             while (!serverSocket.isClosed()){
                 Socket clientSocket = serverSocket.accept(); // Waits for clients to connect
-                System.out.println("Accepting a new connection from " + clientSocket.getRemoteSocketAddress() + " to " + clientSocket.getLocalSocketAddress());
+                System.out.println("New connection from " + clientSocket.getRemoteSocketAddress() + " to " + clientSocket.getLocalSocketAddress());
 
                 ClientHandler clientHandler = new ClientHandler(clientSocket, this); // Creates an instance of ClientHandler for each connected client, starts in new thread
                 clientHandler.start();
 
                 clients.add(clientHandler); // Adds client to list of connected clients
-                System.out.println("Ready to receive message from " + clientSocket.getRemoteSocketAddress());
             }
         } catch(IOException e) {
             if (!serverSocket.isClosed()) {
                 System.out.println("Server error: " + e.getMessage());
-                }
+            }
         }
     }
 
@@ -51,10 +55,10 @@ public class Server extends Thread {
         }
     }
     
-
     // Removes a client handler from the list when it disconnects
     public void removeClient(ClientHandler client) {
         clients.remove(client);
+        System.out.println("Client removed. Active connections: " + clients.size());
     }
 
     // Getter method to return list of all connected clients
@@ -67,6 +71,7 @@ public class Server extends Thread {
         try {
             if (serverSocket != null && !serverSocket.isClosed()) {
                 serverSocket.close();
+                System.out.println("Server shutdown complete.");
             }
         } catch (IOException e) {
             System.out.println("Error closing server socket: " + e.getMessage());

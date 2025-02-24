@@ -31,8 +31,9 @@ public class Client {
             String keyStr = reader.readLine();
             EncryptionTool.setKeyFromString(keyStr);
             
-            // Get user's name
-            name = JOptionPane.showInputDialog("Your name:");
+            // Handle authentication
+            handleAuthentication();
+            
             System.out.println("\nWelcome, " + name + "! Getting ready to send and receive messages...");
             
             // Send encrypted join message
@@ -42,6 +43,121 @@ public class Client {
         } catch (Exception e) {
             System.err.println("Connection error: " + e.getMessage());
             System.exit(1);
+        }
+    }
+
+    // Handles login/register
+    private void handleAuthentication() throws Exception {
+        // Create GUI for login/register
+        String[] options = {"Login", "Register"};
+        int choice = JOptionPane.showOptionDialog(
+            null, 
+            "Choose an option:", 
+            "Authentication", 
+            JOptionPane.DEFAULT_OPTION, 
+            JOptionPane.QUESTION_MESSAGE, 
+            null, 
+            options, 
+            options[0]
+        );
+        
+        if (choice == 0) { // Login
+            login();
+        } else { // Register
+            register();
+        }
+    }
+    
+    // Handle login process
+    private void login() throws Exception {
+        boolean authenticated = false;
+        while (!authenticated) {
+            JPanel panel = new JPanel(new GridLayout(2, 2));
+            JTextField usernameField = new JTextField();
+            JPasswordField passwordField = new JPasswordField();
+            
+            panel.add(new JLabel("Username:"));
+            panel.add(usernameField);
+            panel.add(new JLabel("Password:"));
+            panel.add(passwordField);
+            
+            int result = JOptionPane.showConfirmDialog(null, panel, "Login", JOptionPane.OK_CANCEL_OPTION);
+            if (result == JOptionPane.CANCEL_OPTION) {
+                socket.close();
+                System.exit(0);
+            }
+            
+            String username = usernameField.getText();
+            String password = new String(passwordField.getPassword());
+            
+            if (username.isEmpty() || password.isEmpty()) {
+                JOptionPane.showMessageDialog(null, "Username and password cannot be empty");
+                continue;
+            }
+            
+            // Send login request 
+            writer.println(EncryptionTool.encrypt("AUTH_LOGIN:" + username + ":" + password));
+            
+            // Wait for server response
+            String response = EncryptionTool.decrypt(reader.readLine());
+            if (response.equals("AUTH_SUCCESS")) {
+                authenticated = true;
+                name = username;
+                JOptionPane.showMessageDialog(null, "Login successful!");
+            } else {
+                JOptionPane.showMessageDialog(null, "Invalid username or password");
+            }
+        }
+    }
+    
+    // Handles registration process
+    private void register() throws Exception {
+        boolean registered = false;
+        while (!registered) {
+            JPanel panel = new JPanel(new GridLayout(3, 2));
+            JTextField usernameField = new JTextField();
+            JPasswordField passwordField = new JPasswordField();
+            JPasswordField confirmPasswordField = new JPasswordField();
+            
+            panel.add(new JLabel("Username:"));
+            panel.add(usernameField);
+            panel.add(new JLabel("Password:"));
+            panel.add(passwordField);
+            panel.add(new JLabel("Confirm Password:"));
+            panel.add(confirmPasswordField);
+            
+            int result = JOptionPane.showConfirmDialog(null, panel, "Register", JOptionPane.OK_CANCEL_OPTION);
+            if (result == JOptionPane.CANCEL_OPTION) {
+                socket.close();
+                System.exit(0);
+            }
+            
+            String username = usernameField.getText();
+            String password = new String(passwordField.getPassword());
+            String confirmPassword = new String(confirmPasswordField.getPassword());
+            
+            if (username.isEmpty() || password.isEmpty()) {
+                JOptionPane.showMessageDialog(null, "Username and password cannot be empty");
+                continue;
+            }
+            
+            if (!password.equals(confirmPassword)) {
+                JOptionPane.showMessageDialog(null, "Passwords do not match");
+                continue;
+            }
+            
+            // Send registration request to server
+            writer.println(EncryptionTool.encrypt("AUTH_REGISTER:" + username + ":" + password));
+            
+            // Wait for server response
+            String response = EncryptionTool.decrypt(reader.readLine());
+            if (response.equals("AUTH_SUCCESS")) {
+                registered = true;
+                name = username;
+                JOptionPane.showMessageDialog(null, "Registration successful!");
+            } else {
+                JOptionPane.showMessageDialog(null, "Username already exists");
+            }
         }
     }
 
