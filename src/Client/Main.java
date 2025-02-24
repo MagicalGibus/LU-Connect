@@ -15,7 +15,7 @@ public class Main {
 
         if (args.length >= 3 && args[1].equals("p")) {
             try {
-                port = Interger.parseInt(args[2]);
+                port = Integer.parseInt(args[2]);
             } catch (NumberFormatException e) {
                 System.err.println("Invalid port number");
                 System.exit(1);

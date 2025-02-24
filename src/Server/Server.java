@@ -45,7 +45,9 @@ public class Server extends Thread {
     // Sends message to all connected clients
     public void broadcast(String message, SocketAddress source) {
         for (ClientHandler client : clients) {
-            client.send(message);
+            if (!client.getSocketAddress().equals(source)) {
+                client.send(message);
+            }
         }
     }
     
