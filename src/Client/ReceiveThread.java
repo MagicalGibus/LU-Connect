@@ -1,5 +1,7 @@
 package Client;
 
+import Encryption.EncryptionTool;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import javax.swing.DefaultListModel;
@@ -19,15 +21,19 @@ public class ReceiveThread extends Thread {
     @Override
     public void run() {
         try {
-            String message;
+            String encryptedMessage;
             // Continuous loop while there are messages to be read and the server is running
-            while (running && (message = reader.readLine()) != null) {
-                final String finalMessage = message; // Unchangeable copy of message for lambda function
-                SwingUtilities.invokeLater(() -> { // Necessary for thread safety, ensures running on event dispatch thread 
-                    DefaultListModel<String> model = (DefaultListModel<String>) messages.getModel();
-                    model.addElement(finalMessage);
-                    messages.ensureIndexIsVisible(model.getSize() - 1); // Scrolls page down so new message is shown
-                });
+            while (running && (encryptedMessage = reader.readLine()) != null) {
+                try {
+                    final String decryptedMessage = EncryptionTool.decrypt(encryptedMessage);
+                    SwingUtilities.invokeLater(() -> { // Necessary for thread safety, ensures running on event dispatch thread 
+                        DefaultListModel<String> model = (DefaultListModel<String>) messages.getModel();
+                        model.addElement(decryptedMessage);
+                        messages.ensureIndexIsVisible(model.getSize() - 1);
+                    });
+                } catch (Exception e) {
+                    System.err.println("Error decrypting message: " + e.getMessage());
+                }
             }
         } catch (IOException e) {
             if (running) {

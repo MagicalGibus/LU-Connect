@@ -1,5 +1,7 @@
 package Client;
 
+import Encryption.EncryptionTool;
+
 import javax.swing.*;
 import java.awt.*;
 import java.io.*;
@@ -25,14 +27,19 @@ public class Client {
             writer = new PrintWriter(socket.getOutputStream(), true);
             reader = new BufferedReader(new InputStreamReader(socket.getInputStream())); // Receives data
             
+            // First message from server will be the encryption key
+            String keyStr = reader.readLine();
+            EncryptionTool.setKeyFromString(keyStr);
+            
             // Get user's name
             name = JOptionPane.showInputDialog("Your name:");
             System.out.println("\nWelcome, " + name + "! Getting ready to send and receive messages...");
             
-            // Send join message
-            writer.println("Server: " + name + " has joined the chat. Say hi!");
+            // Send encrypted join message
+            String joinMessage = "Server: " + name + " has joined the chat. Say hi!";
+            writer.println(EncryptionTool.encrypt(joinMessage));
             
-        } catch (IOException e) {
+        } catch (Exception e) {
             System.err.println("Connection error: " + e.getMessage());
             System.exit(1);
         }
@@ -40,16 +47,19 @@ public class Client {
 
     // Method to send messages, if client types "QUIT" then it closes the socket
     public void sendMessage(String message) {
-        if (message.equals("QUIT")) {
-            writer.println("Server: " + name + " has left the chat.");
-            try {
+        try {
+            if (message.equals("QUIT")) {
+                String exitMessage = "Server: " + name + " has left the chat.";
+                writer.println(EncryptionTool.encrypt(exitMessage));
                 socket.close();
-            } catch (IOException e) {
-                System.err.println("Error closing socket: " + e.getMessage());
+                System.exit(0);
+            } else {
+                String fullMessage = name + ": " + message;
+                String encryptedMessage = EncryptionTool.encrypt(fullMessage);
+                writer.println(encryptedMessage);
             }
-            System.exit(0);
-        } else {
-            writer.println(name + ": " + message);
+        } catch (Exception e) {
+            System.err.println("Error encrypting message: " + e.getMessage());
         }
     }
 

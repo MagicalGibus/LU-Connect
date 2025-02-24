@@ -1,5 +1,7 @@
 package Server;
 
+import Encryption.EncryptionTool;
+
 import java.net.*;
 import java.io.*;
 
@@ -24,9 +26,12 @@ public class ClientHandler extends Thread {
             writer = new PrintWriter(clientSocket.getOutputStream(), true); // Sends text to client
 
             // Continuously reads messages from client
+            writer.println(EncryptionTool.getKeyAsString());
+
             String message;
             while ((message = reader.readLine()) != null) {
-                System.out.println(socketAddress + " says " + message);
+                // Pass message along without decrypting
+                System.out.println(socketAddress + " sent " + message);
                 server.broadcast(message, socketAddress);
             }
 
@@ -39,11 +44,12 @@ public class ClientHandler extends Thread {
             try {
                 clientSocket.close();
             } catch (IOException ex) {
-                // Either ignore silently or log the error
                 System.out.println("Error closing socket: " + ex.getMessage());
             }
             server.removeClient(this);
-        }
+        } catch (Exception e) {
+                    e.printStackTrace();
+                }
     }
 
     // Send message to this client
