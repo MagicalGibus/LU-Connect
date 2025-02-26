@@ -1,11 +1,15 @@
 package Server;
 
 import Encryption.EncryptionTool;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Scanner;
 
 public class ExitHandler extends Thread {
     private Server server;
+    private DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("[HH:mm:ss]");
     
     public ExitHandler(Server server) {
         this.server = server; // Reference to server object
@@ -27,7 +31,9 @@ public class ExitHandler extends Thread {
                 List<ClientHandler> clients = server.getClients();
                 for (ClientHandler client : clients) {
                     try {
-                        client.send(EncryptionTool.encrypt("Server: The server is shutting down. Goodbye!"));
+                        // Adds timestamp to shutdown message
+                        String timestamp = LocalDateTime.now().format(timeFormatter);
+                        client.send(EncryptionTool.encrypt(timestamp + " Server: The server is shutting down. Goodbye!"));
                         client.closeSocket();
                     } catch (Exception e) {
                         System.out.println("Error notifying client of shutdown: " + e.getMessage());

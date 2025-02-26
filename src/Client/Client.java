@@ -2,6 +2,8 @@ package Client;
 
 import Encryption.EncryptionTool;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import javax.swing.*;
 import java.awt.*;
 import java.io.*;
@@ -15,6 +17,7 @@ public class Client {
     private BufferedReader reader;
     private JList<String> messages;
     private ReceiveThread receiveThread; // Handles incoming messages
+    private DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("[HH:mm:ss]");
 
     public Client(String host, int port) {
         try {
@@ -93,8 +96,9 @@ public class Client {
             
             System.out.println("\nWelcome, " + name + "! Getting ready to send and receive messages...");
             
-            // Send encrypted join message
-            String joinMessage = "Server: " + name + " has joined the chat. Say hi!";
+            // Sends encrypted join message with timestamp
+            String timestamp = LocalDateTime.now().format(timeFormatter);
+            String joinMessage = timestamp + " Server: " + name + " has joined the chat. Say hi!";
             writer.println(EncryptionTool.encrypt(joinMessage));
             
         } catch (Exception e) {
@@ -223,12 +227,14 @@ public class Client {
     public void sendMessage(String message) {
         try {
             if (message.equals("QUIT")) {
-                String exitMessage = "Server: " + name + " has left the chat.";
+                String timestamp = LocalDateTime.now().format(timeFormatter);
+                String exitMessage = timestamp + " Server: " + name + " has left the chat.";
                 writer.println(EncryptionTool.encrypt(exitMessage));
                 socket.close();
                 System.exit(0);
             } else {
-                String fullMessage = name + ": " + message;
+                String timestamp = LocalDateTime.now().format(timeFormatter);
+                String fullMessage = timestamp + " " + name + ": " + message;
                 String encryptedMessage = EncryptionTool.encrypt(fullMessage);
                 writer.println(encryptedMessage);
             }
@@ -264,18 +270,29 @@ public class Client {
         // Action listeners
         textInput.addActionListener(e -> {
             String message = textInput.getText();
-            sendMessage(message);
-            DefaultListModel<String> model = (DefaultListModel<String>) messages.getModel();
-            model.addElement(name + ": " + message);
-            textInput.setText("");
+            if (!message.trim().isEmpty()) {
+                // Adds the message to local display with timestamp
+                String timestamp = LocalDateTime.now().format(timeFormatter);
+                DefaultListModel<String> model = (DefaultListModel<String>) messages.getModel();
+                model.addElement(timestamp + " " + name + ": " + message);
+                
+                sendMessage(message);
+                textInput.setText("");
+            }
         });
 
         sendButton.addActionListener(e -> {
             String message = textInput.getText();
-            sendMessage(message);
-            DefaultListModel<String> model = (DefaultListModel<String>) messages.getModel();
-            model.addElement(name + ": " + message);
-            textInput.setText("");
+            if (!message.trim().isEmpty()) {
+                // Adds the message to local display with timestamp
+                String timestamp = LocalDateTime.now().format(timeFormatter);
+                DefaultListModel<String> model = (DefaultListModel<String>) messages.getModel();
+                model.addElement(timestamp + " " + name + ": " + message);
+                
+                // Send the message to server
+                sendMessage(message);
+                textInput.setText("");
+            }
         });
 
         // Start receive thread

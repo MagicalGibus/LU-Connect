@@ -14,6 +14,7 @@ public class ClientHandler extends Thread {
     private String username;
     private static UserManager userManager = new UserManager();
     private boolean clientWasQueued;
+    
 
     public ClientHandler(Socket clientSocket, Server server) {
         this.clientSocket = clientSocket;
@@ -35,7 +36,7 @@ public class ClientHandler extends Thread {
             BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
             writer = new PrintWriter(clientSocket.getOutputStream(), true); // Sends text to client
 
-            // Send encryption key if this client not in  queue
+            // Send encryption key if this client not in queue
             if (!clientWasQueued) {
                 System.out.println("Sending encryption key to new client");
                 writer.println(EncryptionTool.getKeyAsString());
