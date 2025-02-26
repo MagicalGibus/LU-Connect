@@ -27,9 +27,66 @@ public class Client {
             writer = new PrintWriter(socket.getOutputStream(), true);
             reader = new BufferedReader(new InputStreamReader(socket.getInputStream())); // Receives data
             
-            // First message from server will be the encryption key
-            String keyStr = reader.readLine();
-            EncryptionTool.setKeyFromString(keyStr);
+            // Check server status
+            String serverMessage = reader.readLine();
+            
+            if (serverMessage.startsWith("SERVER_FULL:")) {
+                // Show message and exit
+                String errorMessage = serverMessage.substring("SERVER_FULL:".length());
+                JOptionPane.showMessageDialog(null, errorMessage, "Server Full", JOptionPane.ERROR_MESSAGE);
+                socket.close();
+                System.exit(1);
+            } else if (serverMessage.startsWith("SERVER_WAITING:")) {
+                // Show waiting message
+                String waitingMessage = serverMessage.substring("SERVER_WAITING:".length());
+                JOptionPane.showMessageDialog(null, waitingMessage, "Waiting for Server", JOptionPane.INFORMATION_MESSAGE);
+                
+                // Create and show a waiting dialogue
+                JDialog waitDialogue = new JDialog((Frame)null, "Waiting in Queue", true);
+                waitDialogue.setLayout(new BorderLayout());
+                JLabel waitLabel = new JLabel("Waiting for a spot on the server...", JLabel.CENTER);
+                JButton cancelButton = new JButton("Cancel");
+                
+                cancelButton.addActionListener(e -> {
+                    try {
+                        socket.close();
+                        System.exit(0);
+                    } catch (IOException ex) {
+                        ex.printStackTrace();
+                    }
+                });
+                
+                waitDialogue.add(waitLabel, BorderLayout.CENTER);
+                waitDialogue.add(cancelButton, BorderLayout.SOUTH);
+                waitDialogue.setSize(300, 150);
+                waitDialogue.setLocationRelativeTo(null);
+                
+                // Start a thread to wait for server response
+                new Thread(() -> {
+                    try {
+                        String response = reader.readLine();
+                        if (response.startsWith("SERVER_CONNECTED:")) {
+                        
+                            SwingUtilities.invokeLater(() -> waitDialogue.dispose());
+                            
+                            // Wait for the encryption key in next message 
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        System.exit(1);
+                    }
+                }).start();
+                
+                // Show the dialogue
+                waitDialogue.setVisible(true);
+                
+                // Read encryption key
+                serverMessage = reader.readLine();
+            }
+            
+            // serverMessage now contains the encryption key
+            System.out.println("Setting encryption key...");
+            EncryptionTool.setKeyFromString(serverMessage);
             
             // Handle authentication
             handleAuthentication();
@@ -42,10 +99,11 @@ public class Client {
             
         } catch (Exception e) {
             System.err.println("Connection error: " + e.getMessage());
+            e.printStackTrace();
             System.exit(1);
         }
     }
-
+    
     // Handles login/register
     private void handleAuthentication() throws Exception {
         // Create GUI for login/register
@@ -61,9 +119,9 @@ public class Client {
             options[0]
         );
         
-        if (choice == 0) { // Login
+        if (choice == 0) { 
             login();
-        } else { // Register
+        } else { 
             register();
         }
     }

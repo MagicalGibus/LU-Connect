@@ -13,11 +13,19 @@ public class ClientHandler extends Thread {
     private PrintWriter writer;
     private String username;
     private static UserManager userManager = new UserManager();
+    private boolean clientWasQueued;
 
     public ClientHandler(Socket clientSocket, Server server) {
         this.clientSocket = clientSocket;
         this.socketAddress = clientSocket.getRemoteSocketAddress();
         this.server = server; // The main server
+        this.clientWasQueued = false;
+    }
+    
+    // Constructor for clients that were in waiting queue
+    public ClientHandler(Socket clientSocket, Server server, boolean wasQueued) {
+        this(clientSocket, server);
+        this.clientWasQueued = wasQueued;
     }
 
     @Override
@@ -27,42 +35,60 @@ public class ClientHandler extends Thread {
             BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
             writer = new PrintWriter(clientSocket.getOutputStream(), true); // Sends text to client
 
-            // Send encryption key
-            writer.println(EncryptionTool.getKeyAsString());
+            // Send encryption key if this client not in  queue
+            if (!clientWasQueued) {
+                System.out.println("Sending encryption key to new client");
+                writer.println(EncryptionTool.getKeyAsString());
+            } else {
+                System.out.println("Client queued");
+            }
 
             // Handles authentication 
             boolean authenticated = false;
             while (!authenticated) {
                 String encryptedAuthMessage = reader.readLine();
                 if (encryptedAuthMessage == null) {
+                    System.out.println("Client disconnected during authentication");
                     break; // Client disconnected
                 }
                 
-                String authMessage = EncryptionTool.decrypt(encryptedAuthMessage);
-                String[] parts = authMessage.split(":");
-                
-                if (parts.length >= 3) {
-                    String authType = parts[0];
-                    String username = parts[1];
-                    String password = parts[2];
+                try {
+                    String authMessage = EncryptionTool.decrypt(encryptedAuthMessage);
+                    System.out.println("Received auth message: " + authMessage);
+                    String[] parts = authMessage.split(":");
                     
-                    if (authType.equals("AUTH_LOGIN")) {
-                        if (userManager.authenticateUser(username, password)) {
-                            authenticated = true;
-                            this.username = username;
-                            writer.println(EncryptionTool.encrypt("AUTH_SUCCESS"));
-                        } else {
-                            writer.println(EncryptionTool.encrypt("AUTH_FAILURE"));
+                    if (parts.length >= 3) {
+                        String authType = parts[0];
+                        String username = parts[1];
+                        String password = parts[2];
+                        
+                        if (authType.equals("AUTH_LOGIN")) {
+                            if (userManager.authenticateUser(username, password)) {
+                                authenticated = true;
+                                this.username = username;
+                                writer.println(EncryptionTool.encrypt("AUTH_SUCCESS"));
+                                System.out.println("Login successful for: " + username);
+                            } else {
+                                writer.println(EncryptionTool.encrypt("AUTH_FAILURE"));
+                                System.out.println("Login failed for: " + username);
+                            }
+                        } else if (authType.equals("AUTH_REGISTER")) {
+                            if (userManager.registerUser(username, password)) {
+                                authenticated = true;
+                                this.username = username;
+                                writer.println(EncryptionTool.encrypt("AUTH_SUCCESS"));
+                                System.out.println("Registration successful for: " + username);
+                            } else {
+                                writer.println(EncryptionTool.encrypt("AUTH_FAILURE"));
+                                System.out.println("Registration failed for: " + username);
+                            }
                         }
-                    } else if (authType.equals("AUTH_REGISTER")) {
-                        if (userManager.registerUser(username, password)) {
-                            authenticated = true;
-                            this.username = username;
-                            writer.println(EncryptionTool.encrypt("AUTH_SUCCESS"));
-                        } else {
-                            writer.println(EncryptionTool.encrypt("AUTH_FAILURE"));
-                        }
+                    } else {
+                        System.out.println("Invalid auth message format: " + authMessage);
                     }
+                } catch (Exception e) {
+                    System.err.println("Error during authentication: " + e.getMessage());
+                    e.printStackTrace();
                 }
             }
             
@@ -72,7 +98,6 @@ public class ClientHandler extends Thread {
                 return;
             }
 
-            // Continue with normal message handling
             String message;
             while ((message = reader.readLine()) != null) {
                 // Pass message along
@@ -93,7 +118,9 @@ public class ClientHandler extends Thread {
             }
             server.removeClient(this);
         } catch (Exception e) {
+            System.out.println("Unexpected error: " + e.getMessage());
             e.printStackTrace();
+            server.removeClient(this);
         }
     }
 
