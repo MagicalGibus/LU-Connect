@@ -25,5 +25,4 @@ public class Main {
         Client client = new Client(host, port);
         SwingUtilities.invokeLater(client::createAndShowGUI);
     }
-
 }

@@ -1,16 +1,22 @@
 package Client;
 
 import Encryption.EncryptionTool;
+import FileTransfer.FileTransferManager;
+import FileTransfer.FileTransferProtocol;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
+
 import java.awt.*;
 import java.io.*;
 import java.net.Socket;
 import java.net.InetSocketAddress;
+import java.util.*;
 
-public class Client {
+
+public class Client implements FileTransferManager.FileTransferCallback {
     private Socket socket;
     private String name;
     private PrintWriter writer;
@@ -18,6 +24,11 @@ public class Client {
     private JList<String> messages;
     private ReceiveThread receiveThread; // Handles incoming messages
     private DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("[HH:mm:ss]");
+    private FileTransferManager fileTransferManager;
+    private JProgressBar fileProgressBar;
+    private JLabel fileStatusLabel;
+    private Map<String, JButton> fileViewButtons = new HashMap<>();
+    private DefaultListModel<String> listModel;
 
     public Client(String host, int port) {
         try {
@@ -29,6 +40,8 @@ public class Client {
 
             writer = new PrintWriter(socket.getOutputStream(), true);
             reader = new BufferedReader(new InputStreamReader(socket.getInputStream())); // Receives data
+            
+            fileTransferManager = new FileTransferManager(this);
             
             // Check server status
             String serverMessage = reader.readLine();
@@ -80,18 +93,14 @@ public class Client {
                     }
                 }).start();
                 
-                // Show the dialogue
                 waitDialogue.setVisible(true);
-                
-                // Read encryption key
                 serverMessage = reader.readLine();
             }
             
             // serverMessage now contains the encryption key
             System.out.println("Setting encryption key...");
             EncryptionTool.setKeyFromString(serverMessage);
-            
-            // Handle authentication
+
             handleAuthentication();
             
             System.out.println("\nWelcome, " + name + "! Getting ready to send and receive messages...");
@@ -110,7 +119,7 @@ public class Client {
     
     // Handles login/register
     private void handleAuthentication() throws Exception {
-        // Create GUI for login/register
+        // Creates GUI for login/register
         String[] options = {"Login", "Register"};
         int choice = JOptionPane.showOptionDialog(
             null, 
@@ -243,29 +252,93 @@ public class Client {
         }
     }
 
+    // For sending files
+    private FileTransferManager.SendCallback createSendCallback() {
+        return new FileTransferManager.SendCallback() {
+            @Override
+            public void send(String message) {
+                writer.println(message);
+            }
+        };
+    }
+
+    // Method to handle file selection and sending
+    private void sendFile() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Select File to Send");
+        
+        // Set file filter for allowed file types
+        FileNameExtensionFilter filter = new FileNameExtensionFilter(
+                "Documents & Images (*.docx, *.pdf, *.jpeg, *.jpg)", "docx", "pdf", "jpeg", "jpg");
+        fileChooser.setFileFilter(filter);
+        
+        int result = fileChooser.showOpenDialog(null);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File selectedFile = fileChooser.getSelectedFile();
+            
+            // Validate file
+            if (!FileTransferProtocol.isValidFile(selectedFile)) {
+                JOptionPane.showMessageDialog(null, 
+                    "Invalid file. Only .docx, .pdf, and .jpeg/.jpg files under 10MB are allowed.", 
+                    "File Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            // Update UI
+            fileStatusLabel.setText("Sending: " + selectedFile.getName());
+            fileProgressBar.setValue(0);
+            fileProgressBar.setVisible(true);
+            
+            // Add message to chat
+            String timestamp = LocalDateTime.now().format(timeFormatter);
+            listModel.addElement(timestamp + " " + name + " is sending file: " + selectedFile.getName());
+            
+            fileTransferManager.sendFile(selectedFile, createSendCallback());
+        }
+    }
+
     // Creates GUI for client
     public void createAndShowGUI() {
-        JFrame frame = new JFrame("Chatroom");
+        JFrame frame = new JFrame("Chatroom - " + name);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(700, 550);
+        frame.setSize(800, 600);
 
         // Scrollable area where messages are shown
-        DefaultListModel<String> listModel = new DefaultListModel<>();
+        listModel = new DefaultListModel<>();
         messages = new JList<>(listModel);
         JScrollPane scrollPane = new JScrollPane(messages);
         
         // Text input area
         JPanel inputPanel = new JPanel(new BorderLayout());
-        JTextField textInput = new JTextField("Write your message here.");
+        JTextField textInput = new JTextField();
         JButton sendButton = new JButton("Send");
+        JButton fileButton = new JButton("Send File");
 
+        // File transfer status panel
+        JPanel filePanel = new JPanel(new BorderLayout());
+        fileStatusLabel = new JLabel("No file transfer in progress");
+        fileProgressBar = new JProgressBar(0, 100);
+        fileProgressBar.setStringPainted(true);
+        fileProgressBar.setVisible(false);
+        
+        filePanel.add(fileStatusLabel, BorderLayout.NORTH);
+        filePanel.add(fileProgressBar, BorderLayout.CENTER);
+        
         // Layout
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.add(fileButton);
+        buttonPanel.add(sendButton);
+        
         inputPanel.add(textInput, BorderLayout.CENTER);
-        inputPanel.add(sendButton, BorderLayout.EAST);
+        inputPanel.add(buttonPanel, BorderLayout.EAST);
+
+        JPanel southPanel = new JPanel(new BorderLayout());
+        southPanel.add(inputPanel, BorderLayout.CENTER);
+        southPanel.add(filePanel, BorderLayout.SOUTH);
 
         frame.setLayout(new BorderLayout());
         frame.add(scrollPane, BorderLayout.CENTER);
-        frame.add(inputPanel, BorderLayout.SOUTH);
+        frame.add(southPanel, BorderLayout.SOUTH);
 
         // Action listeners
         textInput.addActionListener(e -> {
@@ -273,8 +346,7 @@ public class Client {
             if (!message.trim().isEmpty()) {
                 // Adds the message to local display with timestamp
                 String timestamp = LocalDateTime.now().format(timeFormatter);
-                DefaultListModel<String> model = (DefaultListModel<String>) messages.getModel();
-                model.addElement(timestamp + " " + name + ": " + message);
+                listModel.addElement(timestamp + " " + name + ": " + message);
                 
                 sendMessage(message);
                 textInput.setText("");
@@ -286,19 +358,82 @@ public class Client {
             if (!message.trim().isEmpty()) {
                 // Adds the message to local display with timestamp
                 String timestamp = LocalDateTime.now().format(timeFormatter);
-                DefaultListModel<String> model = (DefaultListModel<String>) messages.getModel();
-                model.addElement(timestamp + " " + name + ": " + message);
+                listModel.addElement(timestamp + " " + name + ": " + message);
                 
                 // Send the message to server
                 sendMessage(message);
                 textInput.setText("");
             }
         });
+        
+        fileButton.addActionListener(e -> sendFile());
 
         // Start receive thread
-        receiveThread = new ReceiveThread(reader, messages);
+        receiveThread = new ReceiveThread(reader, messages, fileTransferManager);
         receiveThread.start();
 
         frame.setVisible(true);
+    }
+    
+    // FileTransferCallback implementations
+    @Override
+    public void onTransferProgress(String fileName, int progress) {
+        SwingUtilities.invokeLater(() -> {
+            fileStatusLabel.setText("File transfer in progress: " + fileName);
+            fileProgressBar.setValue(progress);
+            fileProgressBar.setVisible(true);
+        });
+    }
+
+    @Override
+    public void onTransferComplete(String fileName, File file) {
+        SwingUtilities.invokeLater(() -> {
+            fileStatusLabel.setText("Transfer complete: " + fileName);
+            fileProgressBar.setValue(100);
+            
+            // Add message to chat
+            String timestamp = LocalDateTime.now().format(timeFormatter);
+            listModel.addElement(timestamp + " File received: " + fileName);
+            
+            // Add a button to view/open the file
+            JButton viewButton = new JButton("Open File");
+            viewButton.addActionListener(e -> {
+                try {
+                    Desktop.getDesktop().open(file);
+                } catch (IOException ex) {
+                    JOptionPane.showMessageDialog(null, 
+                        "Error opening file: " + ex.getMessage(), 
+                        "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            });
+            
+            // Store the button for this file
+            fileViewButtons.put(fileName, viewButton);
+            
+            // Delay hiding the progress bar
+            new Thread(() -> {
+                try {
+                    Thread.sleep(3000);
+                    SwingUtilities.invokeLater(() -> {
+                        fileProgressBar.setVisible(false);
+                        fileStatusLabel.setText("No file transfer in progress");
+                    });
+                } catch (InterruptedException ex) {
+                    // Ignore
+                }
+            }).start();
+        });
+    }
+
+    @Override
+    public void onTransferError(String fileName, String errorMessage) {
+        SwingUtilities.invokeLater(() -> {
+            fileStatusLabel.setText("Transfer error: " + errorMessage);
+            fileProgressBar.setVisible(false);
+            
+            // Send error in chat
+            String timestamp = LocalDateTime.now().format(timeFormatter);
+            listModel.addElement(timestamp + " File transfer error: " + errorMessage);
+        });
     }
 }

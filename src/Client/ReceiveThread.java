@@ -1,6 +1,8 @@
 package Client;
 
 import Encryption.EncryptionTool;
+import FileTransfer.FileTransferManager;
+import FileTransfer.FileTransferProtocol;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -12,10 +14,12 @@ public class ReceiveThread extends Thread {
     private BufferedReader reader; // To store incoming messages
     private JList<String> messages; // To display messages in GUI
     private boolean running = true;
+    private FileTransferManager fileTransferManager;
 
-    public ReceiveThread(BufferedReader reader, JList<String> messages) {
+    public ReceiveThread(BufferedReader reader, JList<String> messages, FileTransferManager fileTransferManager) {
         this.reader = reader;
         this.messages = messages;
+        this.fileTransferManager = fileTransferManager;
     }
 
     @Override
@@ -26,11 +30,23 @@ public class ReceiveThread extends Thread {
             while (running && (encryptedMessage = reader.readLine()) != null) {
                 try {
                     final String decryptedMessage = EncryptionTool.decrypt(encryptedMessage);
-                    SwingUtilities.invokeLater(() -> { // Necessary for thread safety, ensures running on event dispatch thread 
-                        DefaultListModel<String> model = (DefaultListModel<String>) messages.getModel();
-                        model.addElement(decryptedMessage);
-                        messages.ensureIndexIsVisible(model.getSize() - 1);
-                    });
+                    
+                    // Check if file transfer message
+                    if (decryptedMessage.startsWith(FileTransferProtocol.FILE_START) || 
+                        decryptedMessage.startsWith(FileTransferProtocol.FILE_CHUNK) || 
+                        decryptedMessage.startsWith(FileTransferProtocol.FILE_END) || 
+                        decryptedMessage.startsWith(FileTransferProtocol.FILE_ERROR)) {
+                        
+                        // Handle file transfer message
+                        fileTransferManager.processFileMessage(decryptedMessage);
+                    } else {
+                        // Regular chat message
+                        SwingUtilities.invokeLater(() -> { 
+                            DefaultListModel<String> model = (DefaultListModel<String>) messages.getModel();
+                            model.addElement(decryptedMessage);
+                            messages.ensureIndexIsVisible(model.getSize() - 1);
+                        });
+                    }
                 } catch (Exception e) {
                     System.err.println("Error decrypting message: " + e.getMessage());
                 }
@@ -41,8 +57,7 @@ public class ReceiveThread extends Thread {
             }
         }
     }
-
-    // Stops the threads execution
+    
     public void stopRunning() {
         running = false;
     }

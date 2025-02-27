@@ -2,9 +2,12 @@ package Server;
 
 import Authentication.UserManager;
 import Encryption.EncryptionTool;
+import FileTransfer.FileTransferProtocol;
 
 import java.net.*;
 import java.io.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class ClientHandler extends Thread {
     private Socket clientSocket;
@@ -14,6 +17,7 @@ public class ClientHandler extends Thread {
     private String username;
     private static UserManager userManager = new UserManager();
     private boolean clientWasQueued;
+    private DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("[HH:mm:ss]");
     
 
     public ClientHandler(Socket clientSocket, Server server) {
@@ -101,9 +105,28 @@ public class ClientHandler extends Thread {
 
             String message;
             while ((message = reader.readLine()) != null) {
-                // Pass message along
-                System.out.println(socketAddress + " (" + username + ") sent a message");
-                server.broadcast(message, socketAddress);
+                try {
+                    String decryptedMessage = EncryptionTool.decrypt(message);
+                    
+                    // Check if this is a file transfer message
+                    if (decryptedMessage.startsWith(FileTransferProtocol.FILE_START)) {
+                        // File start notification, add a system message
+                        String[] parts = decryptedMessage.split(":", 3);
+                        if (parts.length >= 3) {
+                            String fileName = parts[1];
+                            String timestamp = LocalDateTime.now().format(timeFormatter);
+                            String fileNotification = timestamp + " Server: " + username + " is sending file: " + fileName;
+                            
+                            server.broadcast(EncryptionTool.encrypt(fileNotification), null);
+                        }
+                    }
+                    
+                    // Pass the message along, whether it's a chat message or file transfer
+                    System.out.println(socketAddress + " (" + username + ") sent a message/file data");
+                    server.broadcast(message, socketAddress);
+                } catch (Exception e) {
+                    System.err.println("Error processing message: " + e.getMessage());
+                }
             }
 
             // Print info when client disconnects
