@@ -185,7 +185,6 @@ public class Client implements FileTransfer.FileTransferCallback {
         }
     }
     
-    // Handles registration process
     private void register() throws Exception {
         boolean registered = false;
         while (!registered) {
@@ -268,7 +267,6 @@ public class Client implements FileTransfer.FileTransferCallback {
         };
     }
 
-    // Method to handle file selection and sending
     private void sendFile() {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setDialogTitle("Select File to Send");
@@ -372,7 +370,6 @@ public class Client implements FileTransfer.FileTransferCallback {
         frame.setVisible(true);
     }
     
-    // FileTransferCallback implementations
     @Override
     public void onTransferComplete(String fileName, File file) {
         SwingUtilities.invokeLater(() -> {
