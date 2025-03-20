@@ -1,8 +1,7 @@
 package Client;
 
 import Encryption.EncryptionTool;
-import FileTransfer.FileTransferManager;
-import FileTransfer.FileTransferProtocol;
+import FileTransfer.FileTransfer;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -14,14 +13,14 @@ public class ReceiveThread extends Thread {
     private BufferedReader reader; // To store incoming messages
     private JList<String> messages; // To display messages in GUI
     private boolean running = true;
-    private FileTransferManager fileTransferManager;
+    private FileTransfer fileTransfer;
     private NotificationSound notificationSound; 
 
-    public ReceiveThread(BufferedReader reader, JList<String> messages, FileTransferManager fileTransferManager, 
+    public ReceiveThread(BufferedReader reader, JList<String> messages, FileTransfer fileTransfer, 
                          NotificationSound notificationSound) {
         this.reader = reader;
         this.messages = messages;
-        this.fileTransferManager = fileTransferManager;
+        this.fileTransfer = fileTransfer;
         this.notificationSound = notificationSound;
     }
 
@@ -34,17 +33,17 @@ public class ReceiveThread extends Thread {
                 try {
                     final String decryptedMessage = EncryptionTool.decrypt(encryptedMessage);
                     
-                    // Check the file transfer message
-                    if (decryptedMessage.startsWith(FileTransferProtocol.FILE_START) || 
-                        decryptedMessage.startsWith(FileTransferProtocol.FILE_CHUNK) || 
-                        decryptedMessage.startsWith(FileTransferProtocol.FILE_END) || 
-                        decryptedMessage.startsWith(FileTransferProtocol.FILE_ERROR)) {
+                    // Check if this is a file transfer message
+                    if (decryptedMessage.startsWith(FileTransfer.FILE_START) || 
+                        decryptedMessage.startsWith(FileTransfer.FILE_CHUNK) || 
+                        decryptedMessage.startsWith(FileTransfer.FILE_END) || 
+                        decryptedMessage.startsWith(FileTransfer.FILE_ERROR)) {
                         
                         // Handle file transfer message
-                        fileTransferManager.processFileMessage(decryptedMessage);
+                        fileTransfer.processFileMessage(decryptedMessage);
                         
                         // Play notification sound for file transfer start
-                        if (decryptedMessage.startsWith(FileTransferProtocol.FILE_START)) {
+                        if (decryptedMessage.startsWith(FileTransfer.FILE_START)) {
                             notificationSound.playNotificationSound();
                         }
                     } else {

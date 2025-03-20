@@ -2,7 +2,7 @@ package Server;
 
 import Authentication.UserManager;
 import Encryption.EncryptionTool;
-import FileTransfer.FileTransferProtocol;
+import FileTransfer.FileTransfer;
 
 import java.net.*;
 import java.io.*;
@@ -109,7 +109,7 @@ public class ClientHandler extends Thread {
                     String decryptedMessage = EncryptionTool.decrypt(message);
                     
                     // Check if this is a file transfer message
-                    if (decryptedMessage.startsWith(FileTransferProtocol.FILE_START)) {
+                    if (decryptedMessage.startsWith(FileTransfer.FILE_START)) {
                         // File start notification, add a system message
                         String[] parts = decryptedMessage.split(":", 3);
                         if (parts.length >= 3) {

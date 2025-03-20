@@ -1,8 +1,7 @@
 package Client;
 
 import Encryption.EncryptionTool;
-import FileTransfer.FileTransferManager;
-import FileTransfer.FileTransferProtocol;
+import FileTransfer.FileTransfer;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import javax.swing.*;
@@ -14,7 +13,7 @@ import java.net.InetSocketAddress;
 import java.util.*;
 
 
-public class Client implements FileTransferManager.FileTransferCallback {
+public class Client implements FileTransfer.FileTransferCallback {
     private Socket socket;
     private String name;
     private PrintWriter writer;
@@ -22,7 +21,7 @@ public class Client implements FileTransferManager.FileTransferCallback {
     private JList<String> messages;
     private ReceiveThread receiveThread; // Handles incoming messages
     private DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("[HH:mm:ss]");
-    private FileTransferManager fileTransferManager;
+    private FileTransfer fileTransfer;
     private Map<String, JButton> fileViewButtons = new HashMap<>();
     private DefaultListModel<String> listModel;
     private NotificationSound notificationSound; 
@@ -41,7 +40,7 @@ public class Client implements FileTransferManager.FileTransferCallback {
             writer = new PrintWriter(socket.getOutputStream(), true);
             reader = new BufferedReader(new InputStreamReader(socket.getInputStream())); // Receives data
             
-            fileTransferManager = new FileTransferManager(this);
+            fileTransfer = new FileTransfer(this);
             
             // Check server status
             String serverMessage = reader.readLine();
@@ -260,8 +259,8 @@ public class Client implements FileTransferManager.FileTransferCallback {
     }
 
     // For sending files
-    private FileTransferManager.SendCallback createSendCallback() {
-        return new FileTransferManager.SendCallback() {
+    private FileTransfer.SendCallback createSendCallback() {
+        return new FileTransfer.SendCallback() {
             @Override
             public void send(String message) {
                 writer.println(message);
@@ -284,7 +283,7 @@ public class Client implements FileTransferManager.FileTransferCallback {
             File selectedFile = fileChooser.getSelectedFile();
             
             // Validate file
-            if (!FileTransferProtocol.isValidFile(selectedFile)) {
+            if (!FileTransfer.isValidFile(selectedFile)) {
                 JOptionPane.showMessageDialog(null, 
                     "Invalid file. Only .docx, .pdf, and .jpeg/.jpg files under 10MB are allowed.", 
                     "File Error", JOptionPane.ERROR_MESSAGE);
@@ -295,7 +294,7 @@ public class Client implements FileTransferManager.FileTransferCallback {
             String timestamp = LocalDateTime.now().format(timeFormatter);
             listModel.addElement(timestamp + " " + name + " is sending file: " + selectedFile.getName());
             
-            fileTransferManager.sendFile(selectedFile, createSendCallback());
+            fileTransfer.sendFile(selectedFile, createSendCallback());
         }
     }
 
@@ -367,7 +366,7 @@ public class Client implements FileTransferManager.FileTransferCallback {
         fileButton.addActionListener(e -> sendFile());
 
         // Start receive thread
-        receiveThread = new ReceiveThread(reader, messages, fileTransferManager, notificationSound);
+        receiveThread = new ReceiveThread(reader, messages, fileTransfer, notificationSound);
         receiveThread.start();
 
         frame.setVisible(true);

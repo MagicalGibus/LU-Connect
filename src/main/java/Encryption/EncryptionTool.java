@@ -9,7 +9,7 @@ import java.util.Base64;
 
 public class EncryptionTool {
     private static final String ALGORITHM = "AES"; // Advanced Encryption Standard algorithm
-    private static SecretKey secretKey; // Holds encryption key
+    private static SecretKey secretKey; 
     private static final String KEY_FILE = "server_key.dat"; // File to store the key
     
     static {
@@ -22,7 +22,7 @@ public class EncryptionTool {
                 KeyGenerator keyGen = KeyGenerator.getInstance(ALGORITHM);
                 keyGen.init(256); // 256-bit key 
                 secretKey = keyGen.generateKey();
-                saveKeyToFile(); // Save new key
+                saveKeyToFile(); 
                 System.out.println("Generated and saved new encryption key");
             }
         } catch (Exception e) {
@@ -30,7 +30,6 @@ public class EncryptionTool {
         }
     }
     
-    // Save the current key to a file
     private static void saveKeyToFile() {
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(KEY_FILE))) {
             oos.writeObject(secretKey.getEncoded());
@@ -39,7 +38,6 @@ public class EncryptionTool {
         }
     }
     
-    // Load the key from file
     private static boolean loadKeyFromFile() {
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(KEY_FILE))) {
             byte[] keyData = (byte[]) ois.readObject();
@@ -68,12 +66,11 @@ public class EncryptionTool {
         return new String(decryptedBytes);
     }
     
-    // Method to get the current key as a string (for sharing with clients)
+    // Method to get the current key for sharing with clients
     public static String getKeyAsString() {
         return Base64.getEncoder().encodeToString(secretKey.getEncoded());
     }
     
-    // Method to set the key from a string (for clients to use the server's key)
     public static void setKeyFromString(String keyStr) {
         byte[] decodedKey = Base64.getDecoder().decode(keyStr);
         secretKey = new SecretKeySpec(decodedKey, 0, decodedKey.length, ALGORITHM);

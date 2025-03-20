@@ -31,7 +31,6 @@ public class UserManager {
         }
     }
 
-    // Save users to file
     private void saveUsers() {
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(USER_FILE))) {
             oos.writeObject(users);
@@ -40,7 +39,6 @@ public class UserManager {
         }
     }
 
-    // Register a new user
     public boolean registerUser(String username, String password) {
         if (users.containsKey(username)) {
             return false; // Username already exists
@@ -58,7 +56,6 @@ public class UserManager {
         }
     }
 
-    // Authenticate a user
     public boolean authenticateUser(String username, String password) {
         if (!users.containsKey(username)) {
             return false; // User doesn't exist
