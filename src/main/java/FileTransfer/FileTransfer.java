@@ -28,7 +28,7 @@ public class FileTransfer {
     public static final int CHUNK_SIZE = 64 * 1024; // 64KB
     private static final String DOWNLOAD_DIR = "downloads";
     
-    // Transfer state tracking (flattened from the inner class)
+    // Transfer state tracking 
     private final Map<String, Long> fileSizes = new HashMap<>();
     private final Map<String, Map<Integer, byte[]>> fileChunks = new HashMap<>();
     private final Map<String, Integer> totalChunksMap = new HashMap<>();
