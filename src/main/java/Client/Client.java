@@ -374,7 +374,6 @@ public class Client implements FileTransferManager.FileTransferCallback {
     }
     
     // FileTransferCallback implementations
-
     @Override
     public void onTransferComplete(String fileName, File file) {
         SwingUtilities.invokeLater(() -> {
@@ -404,7 +403,6 @@ public class Client implements FileTransferManager.FileTransferCallback {
 
     @Override
     public void onTransferProgress(String fileName, int progress) {
-        // Simply log progress to console instead of showing a status bar
         System.out.println("File transfer progress: " + fileName + " - " + progress + "%");
     }
 
