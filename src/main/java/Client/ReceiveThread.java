@@ -15,7 +15,7 @@ public class ReceiveThread extends Thread {
     private JList<String> messages; // To display messages in GUI
     private boolean running = true;
     private FileTransferManager fileTransferManager;
-    private NotificationSound notificationSound; // Added notification sound
+    private NotificationSound notificationSound; 
 
     public ReceiveThread(BufferedReader reader, JList<String> messages, FileTransferManager fileTransferManager, 
                          NotificationSound notificationSound) {
@@ -34,7 +34,7 @@ public class ReceiveThread extends Thread {
                 try {
                     final String decryptedMessage = EncryptionTool.decrypt(encryptedMessage);
                     
-                    // Check if file transfer message
+                    // Check the file transfer message
                     if (decryptedMessage.startsWith(FileTransferProtocol.FILE_START) || 
                         decryptedMessage.startsWith(FileTransferProtocol.FILE_CHUNK) || 
                         decryptedMessage.startsWith(FileTransferProtocol.FILE_END) || 
@@ -48,14 +48,13 @@ public class ReceiveThread extends Thread {
                             notificationSound.playNotificationSound();
                         }
                     } else {
-                        // Regular chat message - add to UI
+                        // Normal chat message
                         SwingUtilities.invokeLater(() -> { 
                             DefaultListModel<String> model = (DefaultListModel<String>) messages.getModel();
                             model.addElement(decryptedMessage);
                             messages.ensureIndexIsVisible(model.getSize() - 1);
                             
-                            // Play notification sound for new messages from others
-                            // Don't play for system messages or your own messages
+                            // Plays a notification sound for new messages but doesn't play when the user sends a message themself
                             if (!decryptedMessage.contains("Server:") && !decryptedMessage.contains(": " + decryptedMessage)) {
                                 notificationSound.playNotificationSound();
                             }

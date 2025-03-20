@@ -3,12 +3,10 @@ package Client;
 import Encryption.EncryptionTool;
 import FileTransfer.FileTransferManager;
 import FileTransfer.FileTransferProtocol;
-
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
-
 import java.awt.*;
 import java.io.*;
 import java.net.Socket;
@@ -25,11 +23,9 @@ public class Client implements FileTransferManager.FileTransferCallback {
     private ReceiveThread receiveThread; // Handles incoming messages
     private DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("[HH:mm:ss]");
     private FileTransferManager fileTransferManager;
-    private JProgressBar fileProgressBar;
-    private JLabel fileStatusLabel;
     private Map<String, JButton> fileViewButtons = new HashMap<>();
     private DefaultListModel<String> listModel;
-    private NotificationSound notificationSound; // Added notification sound object
+    private NotificationSound notificationSound; 
 
     public Client(String host, int port) {
         try {
@@ -295,11 +291,6 @@ public class Client implements FileTransferManager.FileTransferCallback {
                 return;
             }
             
-            // Update UI
-            fileStatusLabel.setText("Sending: " + selectedFile.getName());
-            fileProgressBar.setValue(0);
-            fileProgressBar.setVisible(true);
-            
             // Add message to chat
             String timestamp = LocalDateTime.now().format(timeFormatter);
             listModel.addElement(timestamp + " " + name + " is sending file: " + selectedFile.getName());
@@ -324,16 +315,6 @@ public class Client implements FileTransferManager.FileTransferCallback {
         JTextField textInput = new JTextField();
         JButton sendButton = new JButton("Send");
         JButton fileButton = new JButton("Send File");
-
-        // File transfer status panel
-        JPanel filePanel = new JPanel(new BorderLayout());
-        fileStatusLabel = new JLabel("No file transfer in progress");
-        fileProgressBar = new JProgressBar(0, 100);
-        fileProgressBar.setStringPainted(true);
-        fileProgressBar.setVisible(false);
-        
-        filePanel.add(fileStatusLabel, BorderLayout.NORTH);
-        filePanel.add(fileProgressBar, BorderLayout.CENTER);
         
         // Add a sound toggle option
         JCheckBox soundToggle = new JCheckBox("Sound Notifications", true);
@@ -352,7 +333,6 @@ public class Client implements FileTransferManager.FileTransferCallback {
 
         JPanel southPanel = new JPanel(new BorderLayout());
         southPanel.add(inputPanel, BorderLayout.CENTER);
-        southPanel.add(filePanel, BorderLayout.SOUTH);
 
         frame.setLayout(new BorderLayout());
         frame.add(scrollPane, BorderLayout.CENTER);
@@ -394,21 +374,10 @@ public class Client implements FileTransferManager.FileTransferCallback {
     }
     
     // FileTransferCallback implementations
-    @Override
-    public void onTransferProgress(String fileName, int progress) {
-        SwingUtilities.invokeLater(() -> {
-            fileStatusLabel.setText("File transfer in progress: " + fileName);
-            fileProgressBar.setValue(progress);
-            fileProgressBar.setVisible(true);
-        });
-    }
 
     @Override
     public void onTransferComplete(String fileName, File file) {
         SwingUtilities.invokeLater(() -> {
-            fileStatusLabel.setText("Transfer complete: " + fileName);
-            fileProgressBar.setValue(100);
-            
             // Play notification sound when file transfer is complete
             notificationSound.playNotificationSound();
             
@@ -430,31 +399,26 @@ public class Client implements FileTransferManager.FileTransferCallback {
             
             // Store the button for this file
             fileViewButtons.put(fileName, viewButton);
-            
-            // Delay hiding the progress bar
-            new Thread(() -> {
-                try {
-                    Thread.sleep(3000);
-                    SwingUtilities.invokeLater(() -> {
-                        fileProgressBar.setVisible(false);
-                        fileStatusLabel.setText("No file transfer in progress");
-                    });
-                } catch (InterruptedException ex) {
-                    // Ignore
-                }
-            }).start();
         });
+    }
+
+    @Override
+    public void onTransferProgress(String fileName, int progress) {
+        // Simply log progress to console instead of showing a status bar
+        System.out.println("File transfer progress: " + fileName + " - " + progress + "%");
     }
 
     @Override
     public void onTransferError(String fileName, String errorMessage) {
         SwingUtilities.invokeLater(() -> {
-            fileStatusLabel.setText("Transfer error: " + errorMessage);
-            fileProgressBar.setVisible(false);
-            
-            // Send error in chat
+            // Add error message to chat
             String timestamp = LocalDateTime.now().format(timeFormatter);
-            listModel.addElement(timestamp + " File transfer error: " + errorMessage);
+            listModel.addElement(timestamp + " Error transferring file: " + fileName + " - " + errorMessage);
+            
+            // Show error dialog
+            JOptionPane.showMessageDialog(null, 
+                "Error transferring file: " + errorMessage, 
+                "Transfer Error", JOptionPane.ERROR_MESSAGE);
         });
     }
 }

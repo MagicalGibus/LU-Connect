@@ -16,6 +16,7 @@ public class UserManager {
     }
 
     // Load existing users from file
+    @SuppressWarnings("unchecked")
     private void loadUsers() {
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(USER_FILE))) {
             users = (Map<String, String>) ois.readObject();
@@ -24,8 +25,7 @@ public class UserManager {
             System.out.println("No existing user file found. Creating new user database.");
             saveUsers(); // Create the file
         } catch (IOException | ClassNotFoundException e) {
-            System.out.println("Error loading user data: " + e.getMessage());
-            // If there's an error, start with a fresh map
+            System.out.println("Error loading user data");
             users = new HashMap<>();
             saveUsers();
         }
@@ -36,7 +36,7 @@ public class UserManager {
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(USER_FILE))) {
             oos.writeObject(users);
         } catch (IOException e) {
-            System.out.println("Error saving user data: " + e.getMessage());
+            System.out.println("Error saving user data");
         }
     }
 
@@ -53,7 +53,7 @@ public class UserManager {
             saveUsers();
             return true;
         } catch (Exception e) {
-            System.out.println("Error encrypting password: " + e.getMessage());
+            System.out.println("Error encrypting password");
             return false;
         }
     }
