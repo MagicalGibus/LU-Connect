@@ -1,7 +1,7 @@
 # LU-Connect
 Term project for LZSCC.232
 
-In order to compile the program on a Windows machine, navigate to the java directory type the command: 
+In order to compile the program on a Windows or Linux machine, navigate to the java directory type the command: 
 "javac Authentication/*.java Client/*.java Encryption/*.java FileTransfer/*.java Server/*.java -d ."
 
 While still in the java directory, you can run the Server by typing:
